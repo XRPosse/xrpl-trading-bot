@@ -105,9 +105,16 @@ class AMMDataFetcher:
     async def get_pool_reserves(self, amm_address: str) -> Tuple[Decimal, Decimal]:
         """Get current pool reserves"""
         try:
-            # Get XRP balance
-            account_info = await self.get_amm_info(amm_address)
-            xrp_balance = Decimal(account_info.get("balance", "0")) / Decimal("1000000")
+            # Get account info for XRP balance
+            account_request = AccountInfo(account=amm_address)
+            account_response = await self.json_client.request(account_request)
+            
+            if not account_response.is_successful():
+                logger.error(f"Failed to get account info: {account_response.result}")
+                return Decimal("0"), Decimal("0")
+            
+            account_data = account_response.result["account_data"]
+            xrp_balance = Decimal(account_data.get("Balance", "0")) / Decimal("1000000")
             
             # Get token balance
             lines_request = AccountLines(account=amm_address)
@@ -116,6 +123,7 @@ class AMMDataFetcher:
             if lines_response.is_successful():
                 lines = lines_response.result.get("lines", [])
                 if lines:
+                    # AMM pools typically have one trust line for the token
                     token_balance = Decimal(lines[0].get("balance", "0"))
                     return xrp_balance, abs(token_balance)
             

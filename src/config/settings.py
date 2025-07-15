@@ -1,11 +1,10 @@
 from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from enum import Enum
 
 
 class NetworkType(str, Enum):
-    TESTNET = "testnet"
     MAINNET = "mainnet"
     CUSTOM = "custom"
 
@@ -31,9 +30,9 @@ class Settings(BaseSettings):
     )
     
     # XRPL Configuration
-    xrpl_network: NetworkType = Field(default=NetworkType.TESTNET)
-    xrpl_wss_url: str = Field(default="wss://s.altnet.rippletest.net:51233")
-    xrpl_json_rpc_url: str = Field(default="https://s.altnet.rippletest.net:51234")
+    xrpl_network: NetworkType = Field(default=NetworkType.MAINNET)
+    xrpl_wss_url: str = Field(default="wss://s1.ripple.com:443")
+    xrpl_json_rpc_url: str = Field(default="https://s1.ripple.com:51234")
     
     # Wallet Configuration
     wallet_seed: Optional[str] = Field(default=None)
@@ -66,27 +65,27 @@ class Settings(BaseSettings):
     log_file: str = Field(default="logs/trading_bot.log")
     
     # Database
-    database_url: str = Field(default="sqlite:///trading_bot.db")
+    database_url: str = Field(default="postgresql://postgres:postgres@localhost:5432/xrpl_trading_bot")
     
     # Monitoring
     enable_metrics: bool = Field(default=True)
     metrics_port: int = Field(default=8000, ge=1024, le=65535)
     
-    @validator("max_trade_amount")
-    def validate_trade_amounts(cls, v, values):
-        if "min_trade_amount" in values and v <= values["min_trade_amount"]:
+    @field_validator("max_trade_amount")
+    def validate_trade_amounts(cls, v, info):
+        if "min_trade_amount" in info.data and v <= info.data["min_trade_amount"]:
             raise ValueError("max_trade_amount must be greater than min_trade_amount")
         return v
     
-    @validator("wallet_seed", "wallet_address")
-    def validate_wallet_config(cls, v, values, field):
-        if values.get("bot_mode") == TradingMode.LIVE and not v:
-            raise ValueError(f"{field.name} is required for live trading")
+    @field_validator("wallet_seed", "wallet_address")
+    def validate_wallet_config(cls, v, info):
+        if info.data.get("bot_mode") == TradingMode.LIVE and not v:
+            raise ValueError(f"{info.field_name} is required for live trading")
         return v
     
     @property
     def is_testnet(self) -> bool:
-        return self.xrpl_network == NetworkType.TESTNET
+        return False  # We only support mainnet now
     
     @property
     def is_live_trading(self) -> bool:
@@ -97,11 +96,6 @@ class Settings(BaseSettings):
             return (
                 "wss://s1.ripple.com:443",
                 "https://s1.ripple.com:51234"
-            )
-        elif self.xrpl_network == NetworkType.TESTNET:
-            return (
-                "wss://s.altnet.rippletest.net:51233",
-                "https://s.altnet.rippletest.net:51234"
             )
         else:
             return (self.xrpl_wss_url, self.xrpl_json_rpc_url)

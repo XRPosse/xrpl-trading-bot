@@ -1,0 +1,23 @@
+[Unit]
+Description=XRPL Real-time Data Collector
+After=network.target
+
+[Service]
+Type=simple
+User=rese
+Group=rese
+WorkingDirectory=/home/rese/Documents/rese/xrpl_projects/xrpl_trading_bot
+Environment="PATH=/home/rese/anaconda3/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/rese/anaconda3/bin/python /home/rese/Documents/rese/xrpl_projects/xrpl_trading_bot/start_realtime_collection.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
